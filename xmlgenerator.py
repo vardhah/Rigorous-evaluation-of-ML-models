@@ -73,10 +73,10 @@ schema3="""/>
   <section name="Drivers">
     <attnum name="maximum number" val="40"/>
     <attnum name="focused idx" val="0"/>
-    <attstr name="focused module" val="olethros"/>
+    <attstr name="focused module" val="scr_server"/>
     <section name="1">
       <attnum name="idx" val="0"/>
-      <attstr name="module" val="olethros"/>
+      <attstr name="module" val="scr_server"/>
     </section>
 
   </section>
