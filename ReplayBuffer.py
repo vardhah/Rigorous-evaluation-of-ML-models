@@ -6,6 +6,7 @@ class ReplayBuffer(object):
     def __init__(self, buffer_size):
         self.buffer_size = buffer_size
         self.num_experiences = 0
+        self.num_simout=0
         self.buffer = deque()
 
     def getBatch(self, batch_size):
@@ -35,3 +36,11 @@ class ReplayBuffer(object):
     def erase(self):
         self.buffer = deque()
         self.num_experiences = 0
+   
+    def addstate(self, state):
+        if self.num_simout < self.buffer_size:
+            self.buffer.append(state)
+            self.num_simout += 1
+        else:
+            self.buffer.popleft()
+            self.buffer.append(state)

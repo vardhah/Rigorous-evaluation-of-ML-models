@@ -183,10 +183,6 @@ class Client():
                         os.system('torcs -nofuel -nodamage -nolaptime &')
                     else:
                         os.system('torcs -nofuel -nodamage -nolaptime -vision &')
-
-
-
-
                     time.sleep(1.0)
                     os.system('sh autostart.sh')
                     n_fail = 5

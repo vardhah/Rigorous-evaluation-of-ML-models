@@ -1,4 +1,5 @@
 from gym_torcs import TorcsEnv
+from xmlgenerator import xmlgen
 import numpy as np
 import random
 import argparse
@@ -16,9 +17,11 @@ from OU import OU
 import timeit
 
 OU = OU()       #Ornstein-Uhlenbeck Process
+xml=xmlgen() #Random config generator
 
 def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
     BUFFER_SIZE = 100000
+    SIMOUT_SIZE=10000
     BATCH_SIZE = 32
     GAMMA = 0.99
     TAU = 0.001     #Target Network HyperParameters
@@ -33,8 +36,8 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
     vision = False
 
     EXPLORE = 100000.
-    episode_count = 2000
-    max_steps = 100000
+    episode_count = 50
+    max_steps = 1000
     reward = 0
     done = False
     step = 0
@@ -51,6 +54,7 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
     actor = ActorNetwork(sess, state_dim, action_dim, BATCH_SIZE, TAU, LRA)
     critic = CriticNetwork(sess, state_dim, action_dim, BATCH_SIZE, TAU, LRC)
     buff = ReplayBuffer(BUFFER_SIZE)    #Create replay buffer
+    sim_out= ReplayBuffer(SIMOUT_SIZE)  # create simulation output size
     print("--------------------------  I am in back after creating models------------------------")
     print("--------------------------  I am in back after creating models ------------------------")
     # Generate a Torcs environment
@@ -68,24 +72,29 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
         print("Cannot find the weight")
 
     print("TORCS Experiment Start.")
-    for i in range(episode_count):
 
+    for i in range(episode_count):
+        x_state=xml.x_state(num_track=10)
+        x_state.append(i)
+        
+        crash= 0       # initialised there is no crash 
         print("Episode : " + str(i) + " Replay Buffer " + str(buff.count()))
 
-        if np.mod(i, 3) == 0:
-            ob = env.reset(relaunch=True)   #relaunch TORCS every 3 episode because of the memory leak error
-        else:
-            ob = env.reset()
+        ob = env.reset(relaunch=True)   #relaunch TORCS every 3 episode because of the memory leak error
 
         s_t = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY,  ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm))
-     
+        damage_start= ob.damage
+
+        print('Initial damage sensor reading is:',damage_start)
         total_reward = 0.
         for j in range(max_steps):
+            
             loss = 0 
             epsilon -= 1.0 / EXPLORE
             a_t = np.zeros([1,action_dim])
             noise_t = np.zeros([1,action_dim])
             
+            #actor model predict based on the state of agent
             a_t_original = actor.model.predict(s_t.reshape(1, s_t.shape[0]))
             noise_t[0][0] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][0],  0.0 , 0.60, 0.30)
             noise_t[0][1] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][1],  0.5 , 1.00, 0.10)
@@ -96,15 +105,29 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
             #    print("********Now we apply the brake***********")
             #    noise_t[0][2] = train_indicator * max(epsilon, 0) * OU.function(a_t_original[0][2],  0.2 , 1.00, 0.10)
 
+            #added noise in action
             a_t[0][0] = a_t_original[0][0] + noise_t[0][0]
             a_t[0][1] = a_t_original[0][1] + noise_t[0][1]
             a_t[0][2] = a_t_original[0][2] + noise_t[0][2]
-
+            
+            #environment is told to take a step and return observation, reward, done(time to reset environment),diagnosis
             ob, r_t, done, info = env.step(a_t[0])
 
             s_t1 = np.hstack((ob.angle, ob.track, ob.trackPos, ob.speedX, ob.speedY, ob.speedZ, ob.wheelSpinVel/100.0, ob.rpm))
-        
+            damage_sense= ob.damage
+            car_on_track= ob.trackPos 
+
+            #Crash with wall/ off track kill that episode
+            if (damage_sense-damage_start >0 or car_on_track>1 or car_on_track<-1):
+               print('Damage sensor output is:',damage_sense)
+               print('Car on track sensor output is:',car_on_track)
+               crash=1                                               # if crash or off track
+               break 
+
+                            
+            
             buff.add(s_t, a_t[0], r_t, s_t1, done)      #Add replay buffer
+     
             
             #Do the batch update
             batch = buff.getBatch(BATCH_SIZE)
@@ -114,7 +137,8 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
             new_states = np.asarray([e[3] for e in batch])
             dones = np.asarray([e[4] for e in batch])
             y_t = np.asarray([e[1] for e in batch])
-
+            
+            #targetQ=critic(target_predict(state,actor_target)) 
             target_q_values = critic.target_model.predict([new_states, actor.target_model.predict(new_states)])  
            
             for k in range(len(batch)):
@@ -134,7 +158,7 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
             total_reward += r_t
             s_t = s_t1
         
-            print("Episode", i, "Step", step, "Action", a_t, "Reward", r_t, "Loss", loss)
+            #print("Episode", i, "Step", step, "Action", a_t, "Reward", r_t, "Loss", loss)
         
             step += 1
             if done:
@@ -150,13 +174,16 @@ def playGame(train_indicator=0):    #1 means Train, 0 means simply Run
                 critic.model.save_weights("criticmodel.h5", overwrite=True)
                 with open("criticmodel.json", "w") as outfile:
                     json.dump(critic.model.to_json(), outfile)
-
+        
+        x_state.append(crash)
+        print('Total state(track_number+initialisation)+iteration+crash:',x_state)
         print("TOTAL REWARD @ " + str(i) +"-th Episode  : Reward " + str(total_reward))
         print("Total Step: " + str(step))
         print("")
-
+        sim_out.addstate(x_state) 
     env.end()  # This is for shutting down TORCS
     print("Finish.")
-
+    print("Sim out:",sim_out)
+    
 if __name__ == "__main__":
     playGame()
