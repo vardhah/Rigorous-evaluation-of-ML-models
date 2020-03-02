@@ -1,6 +1,8 @@
-# rareEventFailure+> steps 
-1. Install torcs from git hub 
-2. It will throw error install the error's dependency file 
-3. Do sudo apt-get torcs => to recognised torcs as command in Linux , so you can run from shell. 
-4. pip install numpy 
-5. sudo apt install xautomation (for xte) 
+# rareEventFailure => To evaluate model failure in rare cases 
+Models under experimentation :
+ 1. Neural Network 
+ 2. Gaussian Process Regressor 
+ 3. DDPG reinforcemet learning model
+ 
+All three models are used to drive a car in simulation environment Torcs and its evaltion in done in context of this environment. 
+
