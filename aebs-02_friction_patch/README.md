@@ -1,6 +1,9 @@
-RL-based Advanced Emergency Braking System(evaluation)- aebs-01
+RL-based Advanced Emergency Braking System(evaluation)-Original model by Feiyang  
 ======================================
-Port => 2001
-> Initial velocity -> changed from feiyang model =>  random ( 25 -80 ) 
-> using rewards by Feiyang model
+
+> Initial velocity -> 0-140 kmph
+> aggresive rewards 
 > collecion : Intial velocity ,spd_bfr_nn_triger, episode, reward, stopping distance 
+> added patch ofvarying friction surface
+
+
