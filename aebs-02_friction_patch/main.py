@@ -6,6 +6,7 @@ from scripts.engines.setup_world import SetupWorld
 from scripts.rl_agent.ddpg_agent import ddpgAgent
 from scripts.rl_agent.input_preprocessor import InputPreprocessor
 import numpy as np
+import re
 
 def args_assertions(args):
     collect_1 = args.collect_perception is not None
@@ -38,23 +39,49 @@ if __name__ == '__main__':
         agent = ddpgAgent(Testing=args.testing)
         input_preprocessor = InputPreprocessor()
         stop_dist=1.0
-        #episode=0
-        for episode in range(args.episode):
-        #while stop_dist>0:
+        total_episode_count=[]
+        number_of_loop=0
+        
+        if args.testing is False:
+            total_episode_count.append=args.episode
+            number_of_loop=1
+            actor_files=['actor']
+        elif args.testing is True:
+            trained_models=os.listdir("./models/controller/intermittent")
+            print("=> Trained Models:",trained_models )
+            regex = re.compile(r'actor\d+.pt')
+            actor_files = list(filter(regex.search, trained_models))
+            print('==> Actor Files:',actor_files)
+            number_of_loop=len(actor_files)
+            print('Number of loops:',number_of_loop)
+            p = re.compile(r'\d+') 
+            for element in actor_files:
+                   z = int(p.findall(element)[0])
+                   total_episode_count.append(z)
+            print('==> Episode List:',total_episode_count)
+        
+
+        for loop in range(number_of_loop): 
+         if args.testing is True:
+            agent.loadTestModels(actor_files[loop])
+         print('Current Episode:',total_episode_count[loop])
+         for episode in range(total_episode_count[loop]):
+
             initial_distance = np.random.normal(100, 1)
             initial_speed = np.random.uniform(5,45)
-            #patch_location=np.random.uniform(1,100)
-            #friction_value=np.random.uniform(0,1)
-            #R = env.reset(initial_distance, initial_speed,patch_location,friction_value)
-            R = env.reset(initial_distance, initial_speed)
-            if R[2]==True:
+            patch_location=np.random.uniform(1,100)
+            friction_value=np.random.normal(0.5,0.15)
+
+            R = env.reset(initial_distance, initial_speed,patch_location,friction_value,actor_files[loop])
+            #R = env.reset(initial_distance, initial_speed)
+            if R[2]==True: 
                 print("-----Trapped")
                 continue
             #print("Episode {} is started, target distance: {}, target speed: {}, initial distance: {}, initial speed: {}".format(episode, initial_distance, initial_speed, s[0], s[1]))
     
             s=R[0:2]
             s = input_preprocessor(s) 
-            epsilon = 1.0 - (episode+1)/(args.episode)
+            epsilon = 1.0 - (episode+1)/(total_episode_count[loop])
             #epsilon=1.0
             while True:
                 a = agent.getAction(s, epsilon)
@@ -67,13 +94,15 @@ if __name__ == '__main__':
                 
 
                 if done:
-                    stop_dist=120*s[0] 
+                    #stop_dist=120*s[0] 
                     #print("Episode {} is done, the reward is {}".format(episode,r))
                     break
 
             if args.testing is False:
-                if np.mod(episode, 10) == 0:
+                if np.mod(episode, 20) == 0:
                     agent.save_model()
+                if np.mod(episode,500) == 0:
+                    agent.save_intermittent_model(episode)
             #episode=episode+1
         env.closefile()
         carla_server.stop()

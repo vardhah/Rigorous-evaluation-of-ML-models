@@ -43,6 +43,17 @@ class ddpgAgent():
         else:
             self.actor.model.eval()
     
+    def loadTestModels(self,actor):
+        current_actor="./models/controller/intermittent/"+actor
+        try:
+            self.actor.model.load_state_dict(torch.load(current_actor))
+            self.actor.target_model.load_state_dict(torch.load(current_actor))
+            print("Load intermittent actor model successfully",current_actor)
+        except:
+            print("Cannot find intermittent actor weights in this directory")
+        self.actor.model.eval()
+        return 
+
     def getAction(self, state, epsilon):
         action = np.zeros([1, action_dim])
         noise = np.zeros([1, action_dim])
@@ -98,7 +109,14 @@ class ddpgAgent():
         print("Saving model now...")
         torch.save(self.actor.model.state_dict(), "./models/controller/actor.pt")
         torch.save(self.critic.model.state_dict(), "./models/controller/critic.pt")
-        
+    
+    def save_intermittent_model(self,episode):
+        print("Saving intermittent model now...")
+        actor_name='./models/controller/intermittent/'+'actor'+str(episode)+'.pt'
+        critic_name='./models/controller/intermittent/'+'critic'+str(episode)+'.pt'
+        torch.save(self.actor.model.state_dict(), actor_name)
+        torch.save(self.critic.model.state_dict(), critic_name)  
+
     def to_tensor(self, numpy_array):
         return torch.from_numpy(numpy_array).float().cuda()
     

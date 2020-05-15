@@ -20,9 +20,11 @@ class SetupWorld():
     def __init__(self, host='127.0.0.1', port=2002, town=1, gui=False, collect={"option":0, "path": None}, perception=None):
         self.episode = 0
         self.velocity_bfr_kicking_nn=0.0
-        self.flag=0
+        self.flag=None
         self.kickspd=0.0
         self.crossing_velocity=0.0
+        self.location_of_patch=0.0
+        self.friction_of_patch=0.0
 
         self.collect = collect
         self.perception = perception
@@ -32,7 +34,6 @@ class SetupWorld():
         self.client = carla.Client(host, port)
         self.client.set_timeout(30.0)
         self.world = self.client.load_world('Town0{}'.format(town))
-        self.episode_count = 0
         settings = self.world.get_settings()
         settings.fixed_delta_seconds = 0.05
         settings.synchronous_mode = True
@@ -40,8 +41,8 @@ class SetupWorld():
         self.actor = []
         self.display = None
     
-    #def reset(self, initial_distance, initial_speed,patch_location, friction_value):
-    def reset(self, initial_distance, initial_speed):    
+    def reset(self, initial_distance, initial_speed,patch_location, friction_value,current_actor):
+    #def reset(self, initial_distance, initial_speed):    
         self.kickspd=initial_speed
         if self.gui and self.display:
             self.display.stop()
@@ -54,7 +55,7 @@ class SetupWorld():
         self.actor = []
 
         self.spawn_vehicles(initial_speed)
-        #self.spawn_friction(patch_location,friction_value)
+        self.spawn_friction(patch_location,friction_value)
         self.dist_calc = DistanceCalculation(self.ego_vehicle, self.leading_vehicle, self.perception)
         self.rewards = reward_calc(a=1.0,d=1.0,base=1.9)
         self.pid_controller = PID(P=1, I=0.0003, D=0.0)
@@ -63,9 +64,10 @@ class SetupWorld():
             self.display = pygameViewer()
         
 
-        if self.collect["option"] != 0 and self.flag==0:
-            self.flag=1
-            self.collect_data = collectData(self.collect["path"], self.perception)
+        if self.collect["option"] != 0 and self.flag!=current_actor:
+            self.episode=0
+            self.flag=current_actor
+            self.collect_data = collectData(self.collect["path"], self.perception,current_actor)
             
         
         self.step_count = 0
@@ -73,7 +75,6 @@ class SetupWorld():
         self.world.set_weather(self.weather.get_weather_parameters())
         
         S0 = self.reset_episode(initial_distance, initial_speed)
-        self.episode_count += 1
         return S0
     
     def reset_episode(self, initial_distance, initial_speed):
@@ -114,15 +115,17 @@ class SetupWorld():
     
     def spawn_friction(self,location,set_friction):
         self.friction_bp = self.world.get_blueprint_library().find('static.trigger.friction')
-        extent = carla.Location(400, 100, 0.001)
+        extent = carla.Location(400, 200, 0.001)
         self.friction_bp.set_attribute('friction', str(set_friction))
         self.friction_bp.set_attribute('extent_x', str(extent.x))
         self.friction_bp.set_attribute('extent_y', str(extent.y))
         self.friction_bp.set_attribute('extent_z', str(extent.z))
         # Spawn Trigger Friction
         transform = carla.Transform()
-        transform.location = carla.Location(x=392.1, y=location, z=0.0)
+        transform.location = carla.Location(x=392.1, y=(217+location), z=0.0)
         self.friction=self.world.spawn_actor(self.friction_bp, transform)
+        self.location_of_patch=location
+        self.friction_of_patch=set_friction
         # Optional for visualizing trigger
         self.world.debug.draw_box(box=carla.BoundingBox(transform.location, extent * 1e-2), rotation=transform.rotation, \
             life_time=1000, thickness=0.05, color=carla.Color(r=255,g=0,b=0))
@@ -209,12 +212,12 @@ class SetupWorld():
         if done:
             if (isCollision):
                 reward = self.rewards.reward_total(groundtruth_distance,self.crossing_velocity)
-                print("===> Collision & Episode: {},KickSpd:{},NN_spd: {},CRS_spd: {}, Reward: {}, Stop_Dist: {}".format(self.episode,self.kickspd,self.velocity_bfr_kicking_nn,self.crossing_velocity,reward, groundtruth_distance))
+                #print("===> Collision & Episode: {},KickSpd:{},NN_spd: {},CRS_spd: {}, Reward: {}, Stop_Dist: {}".format(self.episode,self.kickspd,self.velocity_bfr_kicking_nn,self.crossing_velocity,reward, groundtruth_distance))
             elif (isStop):
                 reward = self.rewards.reward_total(groundtruth_distance,self.crossing_velocity)
-                print("====> Stopped & Episode: {},,KickSpd:{},NN_spd: {}, CRS_spd: {},Reward: {}, Stop_Dist: {}".format(self.episode,self.kickspd,self.velocity_bfr_kicking_nn,self.crossing_velocity,reward, groundtruth_distance))
+                #print("====> Stopped & Episode: {},,KickSpd:{},NN_spd: {}, CRS_spd: {},Reward: {}, Stop_Dist: {}".format(self.episode,self.kickspd,self.velocity_bfr_kicking_nn,self.crossing_velocity,reward, groundtruth_distance))
             if self.collect["option"] != 0:
-               self.collect_data(self.episode, self.kickspd,self.velocity_bfr_kicking_nn, self.crossing_velocity,reward,groundtruth_distance)
+               self.collect_data(self.episode, self.kickspd,self.velocity_bfr_kicking_nn, self.crossing_velocity,self.location_of_patch,self.friction_of_patch,reward,groundtruth_distance)
             self.episode+=1
 
         else:
