@@ -6,6 +6,7 @@ from scripts.rl_agent.ddpg_agent import ddpgAgent
 from scripts.rl_agent.input_preprocessor import InputPreprocessor
 import numpy as np
 from scripts.engines.AVF_search import AVF_search
+from scripts.engines.Priority_replay_AVF import PR_AVF
 
 def args_assertions(args):
     collect_1 = args.collect_perception is not None
@@ -36,16 +37,21 @@ if __name__ == '__main__':
         env = SetupWorld(mass=1300, wheel_radius=0.04, dt=0.05, collect=collect)
         agent = ddpgAgent(Testing=args.testing)
         input_preprocessor = InputPreprocessor()
-        avf=AVF_search()
+        agnt_number=2000;                            # select agent
+        pr_avf=PR_AVF(agnt_number)                   # Priority replay avf class declaration
+        avf=AVF_search()                             # avf search class declaration  
         stopdist=6.0
         print('Number of episodes :',args.episode)
         for episode in range(args.episode):
          while stopdist>5.0:
-            agnt_number=2000;
+            
             numberofsamples=2000
-            initial_distance = np.random.normal(100, 1)
-            #initial_speed = np.random.normal(38,11)
-            initial_speed = avf.avf_predictor(numberofsamples,agnt_number)
+            initial_distance = np.random.normal(100, 1)  
+            ##select sampler---------------------------------------------------------------    
+            initial_speed = np.random.normal(38,11)                            # Vanilla sampling 
+            #initial_speed = avf.avf_predictor(numberofsamples,agnt_number)    # AVF based Sampling
+            #initial_speed = pr_avf.pr_sampler()                               # PR sampling
+            # ------------------------------------------------------------------------------                                
             if initial_speed <1 : initial_speed=1
             print('spawned velocity is',initial_speed)
             friction=0.7
@@ -63,6 +69,7 @@ if __name__ == '__main__':
             #print('Out from input preprocessor')
             epsilon = 1.0 - (episode+1)/(args.episode)
 
+
             while True:
                 #print('In while loop')
                 a = agent.getAction(s, epsilon)
@@ -79,7 +86,8 @@ if __name__ == '__main__':
                     stopdist=s[0]*120
                     break
 
-
+            if(stopdist<=5):
+                print(' => => YEAH !!!  Found a crashed case')
             if args.testing is False:
                 if np.mod(episode, 50) == 0:
                     agent.save_model()

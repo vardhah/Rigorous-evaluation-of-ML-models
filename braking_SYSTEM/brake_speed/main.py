@@ -43,10 +43,11 @@ if __name__ == '__main__':
             initial_distance = np.random.normal(100, 1)
             initial_speed = np.random.normal(38,11)
             if initial_speed <1 : initial_speed=1
-            friction=np.random.normal(0.7,0.10)
-            if friction<=0.2 : friction=0.2 
-            variance_fric= 0.2*np.random.random_sample()+0.1    # estimate varince between maximum and kinetic friction
-            
+            friction=np.random.normal(0.7,0.15)
+            if friction<=0 : friction=0 
+            variance_fric= np.random.normal(0.2,0.06)    # estimate varince between maximum and kinetic friction
+            if variance_fric<0 : variance_fric=0
+
             R = env.reset(initial_distance, initial_speed,friction,variance_fric)
             #print('came from SetupWorld')
             if R[2]==True: 

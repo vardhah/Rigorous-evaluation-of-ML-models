@@ -24,8 +24,8 @@ class ddpgAgent():
         self.actor = Actor(state_dim, action_dim, BATCH_SIZE, TAU, LRA)
 
         try:
-            self.actor.model.load_state_dict(torch.load("./models/controller/actor3000.pt"))
-            self.actor.target_model.load_state_dict(torch.load("./models/controller/actor3000.pt"))
+            self.actor.model.load_state_dict(torch.load("./models/controller/actor.pt"))
+            self.actor.target_model.load_state_dict(torch.load("./models/controller/actor.pt"))
             print("Load actor model successfully")
         except:
             print("Cannot find actor weights in this directory")
@@ -61,7 +61,9 @@ class ddpgAgent():
             action_original = self.actor.model(self.to_tensor(state.reshape(1, state.shape[0])))
         action_original = self.to_array(action_original)
         if self.testing is False:
-            noise[0][0] = (1.0-float(self.testing)) * max(epsilon, 0) * self.OU.function(action_original[0][0], 0.2, 1.00, 0.10)
+            #noise[0][0] = (1.0-float(self.testing)) * max(epsilon, 0) * self.OU.function(action_original[0][0], 0.2, 1.00, 0.10)
+            noise[0][0] =  max(epsilon, 0) * self.OU.function(action_original[0][0], 0, 0.60, 0.10)
+            #print('noise is :',noise[0][0],'action is:',action_original)
         action[0][0] = action_original[0][0] + noise[0][0]
         if action[0][0] < 0.0:
             action[0][0] = 0.0

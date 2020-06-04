@@ -1,5 +1,5 @@
 import sys 
-import carla
+
 
 class DynamicPrecipitation(object):
     def __init__(self, initial_precipitation=0.0, step_0=0, step_1=100, slope=0.0):
