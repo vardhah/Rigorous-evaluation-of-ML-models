@@ -8,7 +8,7 @@ import torch
 
 state_dim = 3
 action_dim = 1
-BATCH_SIZE = 32
+BATCH_SIZE = 8
 GAMMA = 0.99
 TAU = 0.001
 LRA = 0.0001
@@ -24,8 +24,8 @@ class ddpgAgent():
         self.actor = Actor(state_dim, action_dim, BATCH_SIZE, TAU, LRA)
 
         try:
-            self.actor.model.load_state_dict(torch.load("./models/controller/actor3000.pt"))
-            self.actor.target_model.load_state_dict(torch.load("./models/controller/actor3000.pt"))
+            self.actor.model.load_state_dict(torch.load("./models/controller/actor.pt"))
+            self.actor.target_model.load_state_dict(torch.load("./models/controller/actor.pt"))
             print("Load actor model successfully")
         except:
             print("Cannot find actor weights in this directory")

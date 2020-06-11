@@ -43,13 +43,13 @@ if __name__ == '__main__':
         stopdist=6.0
         print('Number of episodes :',args.episode)
         for episode in range(args.episode):
-         while stopdist>5.0:
+         #while stopdist>5.0:
             friction=0.7
             numberofsamples=2000
             initial_distance = np.random.normal(100, 1)  
             
             ##Vanilla Monte Carlo sampler---------------------------------------------------------------    
-            """
+            
             initial_speed = np.random.normal(38,11)                            # Vanilla sampling 
             friction_of_patch=np.random.normal(0.7,0.15)
             if friction<=0 : friction=0 ;
@@ -64,7 +64,7 @@ if __name__ == '__main__':
             friction_of_patch=data[0][2]
             location_of_patch=data[0][3]
             size_of_patch=data[0][4]
-            
+            """
             #-------------------------------------------------------------------------------
 
             #initial_speed = pr_avf.pr_sampler()                               # PR sampling
